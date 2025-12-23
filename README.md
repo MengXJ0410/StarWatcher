@@ -1,9 +1,12 @@
 # StarWatcher (星空观测助手) 🔭
 
 StarWatcher 是一个轻量级的，我借助Copliot开发的星空观测辅助工具，它可以根据你所在的城市，计算出木星、火星、月亮等天体的最佳观测时间。
+本项目由 Python 构建，并使用了 GitHub Copilot 辅助开发。
+
+
 本项目由阿里云ESA提供加速、计算和保护![阿里云ESA Pages](
 https://img.alicdn.com/imgextra/i3/O1CN01H1UU3i1Cti9lYtFrs_!!6000000000139-2-tps-7534-844.png)
-本项目由 Python 构建，并使用了 GitHub Copilot 辅助开发。
+
 
 ## ✨ 功能特点
 
