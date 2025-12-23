@@ -10,7 +10,7 @@ StarWatcher 是一个运行在边缘端 (Edge) 的星空观测辅助工具。它
 
 ## 📸 应用预览
 
-| 观测报告 | 移动端适配 |
+| 主页面 | 查询结果 |
 | :---: | :---: |
 | ![展示1](https://github.com/MengXJ0410/StarWatcher/blob/main/display1.png?raw=true) | ![展示2](https://github.com/MengXJ0410/StarWatcher/blob/main/display2.png?raw=true) |
 
