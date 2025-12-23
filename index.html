@@ -11,9 +11,10 @@
   <body>
     <div id="root"></div>
     <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.50.0/build/stlite.js"></script>
-       <script>
+    <script>
       stlite.mount({
-        requirements: ["streamlit", "pytz", "pymeeus"], // ✅ pymeeus 是纯 Python 库，绝对能跑
+
+        requirements: ["streamlit", "pytz"],
         entrypoint: "app.py",
       }, document.getElementById("root"));
     </script>
