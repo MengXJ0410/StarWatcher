@@ -51,5 +51,3 @@ python starwatcher.py
 - **Aliyun ESA**: 边缘托管与分发网络
 
 ---
-
-**注意**：部署到阿里云 ESA 时，请确保 `app.py` 文件中不包含任何 C 扩展库的依赖，因为这些库无法在 WebAssembly 环境中正常运行。
