@@ -1,0 +1,12 @@
+# 忽略虚拟环境文件夹
+.venv/
+venv/
+env/
+
+# 忽略Python编译文件
+__pycache__/
+*.py[cod]
+
+# 忽略IDE配置文件 (如果你用VS Code或PyCharm)
+.vscode/
+.idea/
