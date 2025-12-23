@@ -44,26 +44,6 @@ streamlit run app.py
 python starwatcher.py
 ```
 
-## ☁️ 阿里云 ESA 部署指南 (重点)
-
-本项目已针对 **阿里云 ESA (Edge Security Acceleration) Pages** 进行了深度优化。请按照以下配置进行部署：
-
-### 准备文件
-确保仓库中包含以下核心文件：
-- `index.html` (Stlite 引导入口)
-- `app.py` (纯 Python 业务逻辑，不能包含 ephem 等 C 扩展库)
-
-### ESA 控制台配置
-在 ESA Pages 创建项目时，请严格使用以下配置，以确保静态资源被正确抓取：
-
-| 配置项 | 填写内容 | 说明 |
-|--------|----------|------|
-| 框架预设 | None / Static | 纯静态站点模式 |
-| 构建命令 | `mkdir -p dist && cp index.html app.py dist/` | 手动将核心文件复制到发布目录 |
-| 静态资源目录 | `dist` | 告诉 ESA 发布该目录下的文件 |
-| 安装命令 | (留空) | 不需要 pip install |
-| 函数入口 | (留空) | 不需要 Serverless 函数 |
-
 ## 🧰 技术栈
 - **Python 3**: 核心逻辑
 - **Streamlit**: UI 框架
