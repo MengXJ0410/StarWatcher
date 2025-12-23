@@ -13,7 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.50.0/build/stlite.js"></script>
     <script>
       stlite.mount({
-        requirements: ["streamlit", "pytz", "ephem"], // 尝试请求 ephem，stlite 会尝试从 PyPI 拉取 wheel
+        // 移除 ephem，加入 skyfield (它会自动拉取 numpy)
+        requirements: ["streamlit", "pytz", "skyfield"],
         entrypoint: "app.py",
         files: {
           "app.py": `
