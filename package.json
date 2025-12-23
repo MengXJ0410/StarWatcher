@@ -1,0 +1,13 @@
+{
+  "name": "starwatcher",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "python3 starwatcher.py"
+  },
+  "description": "A lightweight Python project for observing stars.",
+  "author": "MengXJ0410",
+  "dependencies": {},
+  "engines": {
+    "python": ">=3.8"
+  }
+}
