@@ -18,92 +18,139 @@
         entrypoint: "app.py",
         files: {
           "app.py": `
-import streamlit as st
+          import streamlit as st
 import pytz
 from datetime import datetime, timedelta
 
-# 尝试导入 ephem，如果环境不支持（因为它是 C 扩展），则使用模拟模式
-# 这样保证评委在任何浏览器都能打开，不会白屏
-try:
-    import ephem
-    HAS_EPHEM = True
-except ImportError:
-    HAS_EPHEM = False
-    st.toast("⚠️ 当前边缘环境暂不支持 Ephem 库，已切换至演示模式", icon="ℹ️")
-
 # --- 1. 核心逻辑 ---
-
+# 尝试导入 skyfield，如果环境不支持则回退到演示模式
+try:
+    from skyfield.api import load, wgs84
+    from skyfield import almanac
+    HAS_SKYFIELD = True
+except ImportError:
+    HAS_SKYFIELD = False
+    
+# 城市经纬度字典
 CITY_DB = {
-    "杭州": (30.2741, 120.1551),
-    "Hangzhou": (30.2741, 120.1551),
-    "上海": (31.2304, 121.4737),
-    "Shanghai": (31.2304, 121.4737),
-    "北京": (39.9042, 116.4074),
-    "Beijing": (39.9042, 116.4074),
-    "深圳": (22.5431, 114.0579),
-    "Shenzhen": (22.5431, 114.0579),
+    "杭州 (Hangzhou)": (30.2741, 120.1551),
+    "上海 (Shanghai)": (31.2304, 121.4737),
+    "北京 (Beijing)": (39.9042, 116.4074),
+    "深圳 (Shenzhen)": (22.5431, 114.0579),
+    "广州 (Guangzhou)": (23.1291, 113.2644)
 }
 
+# 加载天文数据（这是最耗时的一步，利用 st.cache_resource 缓存）
+@st.cache_resource
+def load_skyfield_data():
+    if not HAS_SKYFIELD:
+        return None, None
+    # 'de421.bsp' 是一个精简版行星历表，约 16MB
+    # Pyodide 会尝试从网络下载，这在 Web 环境中是允许的
+    try:
+        ts = load.timescale()
+        eph = load('de421.bsp')
+        return ts, eph
+    except Exception as e:
+        return None, None
+
 def calculate_star_data(city_name, target_body_name):
-    # 获取经纬度
+    # 1. 获取经纬度
     if city_name in CITY_DB:
         lat, lon = CITY_DB[city_name]
     else:
-        return None, "暂不支持该城市，请尝试：杭州、上海、北京、深圳"
+        return None, "暂不支持该城市"
 
     results = []
     now = datetime.now(pytz.utc)
     local_tz = pytz.timezone('Asia/Shanghai')
-    current_check = now
 
-    # 如果支持 ephem，进行真实计算
-    if HAS_EPHEM:
-        observer = ephem.Observer()
-        observer.lat = str(lat)
-        observer.lon = str(lon)
-        observer.elevation = 0
-        observer.date = now
+    # 2. 如果支持 Skyfield 且数据加载成功，进行真实计算
+    ts, eph = load_skyfield_data()
+    
+    if HAS_SKYFIELD and ts and eph:
+        try:
+            # 定义观测点
+            observer = wgs84.latlon(lat, lon)
+            
+            # 映射天体名称到 Skyfield 对象
+            # skyfield 的命名方式不同，这里做个简单映射
+            planet_map = {
+                "木星 (Jupiter)": 'jupiter barycenter',
+                "火星 (Mars)": 'mars barycenter',
+                "金星 (Venus)": 'venus barycenter',
+                "土星 (Saturn)": 'saturn barycenter',
+                "月亮 (Moon)": 'moon' 
+            }
+            target_key = planet_map.get(target_body_name)
+            target = eph[target_key]
+            earth = eph['earth']
+            
+            # 计算未来 3 天
+            t0 = ts.from_datetime(now)
+            t1 = ts.from_datetime(now + timedelta(days=3))
+            
+            # 使用 almanac 寻找升起和落下
+            # find_discrete 会返回时间点和对应的事件(0=rise, 1=culminate, 2=set) - 具体取决于 risings_and_settings 的实现
+            # almanac.risings_and_settings 返回 True(升起) 或 False(落下)
+            f = almanac.risings_and_settings(eph, target, observer)
+            t, y = almanac.find_discrete(t0, t1, f)
 
-        body_map = {
-            "木星 (Jupiter)": ephem.Jupiter(),
-            "火星 (Mars)": ephem.Mars(),
-            "月亮 (Moon)": ephem.Moon(),
-            "土星 (Saturn)": ephem.Saturn(),
-            "金星 (Venus)": ephem.Venus()
-        }
-        body = body_map.get(target_body_name)
-        
-        for i in range(3):
-            observer.date = current_check
-            body.compute(observer)
-            try:
-                rising = observer.next_rising(body).datetime().replace(tzinfo=pytz.utc).astimezone(local_tz)
-                setting = observer.next_setting(body).datetime().replace(tzinfo=pytz.utc).astimezone(local_tz)
+            # 整理数据
+            # t 是时间列表，y 是状态列表 (1=Rise, 0=Set)
+            event_times = t.utc_datetime()
+            
+            # 我们按天分组，简单处理：找到每天的一对升落
+            # 为了简化逻辑，我们在 Web 版中只展示“下一次”或者简单的列表
+            
+            for time_utc, is_rise in zip(event_times, y):
+                # 转换为本地时间
+                local_dt = time_utc.replace(tzinfo=pytz.utc).astimezone(local_tz)
                 
-                is_night = False
-                if rising.hour >= 18 or rising.hour <= 6 or setting.hour >= 18 or setting.hour <= 6:
-                    is_night = True
+                # 只显示未来发生的
+                if local_dt < datetime.now(local_tz):
+                    continue
+                    
+                event_type = "⬆️ 升起" if is_rise else "⬇️ 落下"
+                
+                # 简单推荐逻辑：如果在晚上 (18点-6点)
+                recommend = ""
+                if is_rise and (local_dt.hour >= 18 or local_dt.hour <= 5):
+                     recommend = "⭐⭐⭐ 推荐观测"
+                elif not is_rise and (local_dt.hour >= 19 or local_dt.hour <= 6):
+                     # 落下如果是晚上，说明之前一段时间都在天上
+                     recommend = "⭐⭐ 可见"
+                else:
+                     recommend = "☀️ 白天"
 
                 results.append({
-                    "date": rising.strftime('%Y-%m-%d'),
-                    "rise": rising.strftime('%H:%M'),
-                    "set": setting.strftime('%H:%M'),
-                    "recommend": "⭐⭐⭐ 推荐观测" if is_night else "⭐ 白天可见度低"
+                    "date": local_dt.strftime('%Y-%m-%d'),
+                    "time": local_dt.strftime('%H:%M'),
+                    "type": event_type,
+                    "recommend": recommend
                 })
-                current_check += timedelta(days=1)
-            except:
-                pass
+                
+                if len(results) >= 6: # 最多显示6条记录
+                    break
+
+        except Exception as e:
+            return None, f"计算出错: {str(e)}"
     
-    # 如果不支持 ephem，生成演示数据 (Fallback)
+    # 3. 如果不支持或加载失败，使用演示数据 (Fallback)
     else:
-        for i in range(3):
+        for i in range(1, 4):
             check_date = now + timedelta(days=i)
-            # 伪造一些看起来真实的数据用于演示
             results.append({
                 "date": check_date.strftime('%Y-%m-%d'),
-                "rise": "18:30 (演示)",
-                "set": "05:45 (演示)",
-                "recommend": "⭐⭐⭐ 推荐观测 (演示模式)"
+                "time": "19:30",
+                "type": "⬆️ 升起 (演示)",
+                "recommend": "⭐⭐⭐ 推荐观测"
+            })
+            results.append({
+                "date": check_date.strftime('%Y-%m-%d'),
+                "time": "05:15",
+                "type": "⬇️ 落下 (演示)",
+                "recommend": "⭐⭐⭐"
             })
 
     return results, None
@@ -114,12 +161,18 @@ def calculate_star_data(city_name, target_body_name):
 st.set_page_config(page_title="星空观测助手", page_icon="🔭")
 
 st.title("🌌 城市星空观测助手 (Edge版)")
-st.caption("🚀 Powered by WebAssembly & Aliyun ESA Pages")
+st.caption("🚀 Powered by Skyfield & Aliyun ESA Pages")
 
-if not HAS_EPHEM:
-    st.warning("注意：当前浏览器环境缺少 C 扩展支持，正在以【演示模式】运行。")
+if not HAS_SKYFIELD:
+    st.warning("⚠️ 正在运行演示模式 (缺少 Skyfield 库或数据加载失败)")
+else:
+    # 首次加载数据时显示提示
+    if 'data_loaded' not in st.session_state:
+        with st.spinner('正在初始化天文数据 (首次加载可能需要下载 16MB 数据)...'):
+            load_skyfield_data()
+        st.session_state.data_loaded = True
 
-st.markdown("输入你的城市，查看今晚是否适合观测木星、月亮等天体。")
+st.markdown("输入你的城市，查看天体升落时间。")
 
 # 侧边栏输入
 with st.sidebar:
@@ -128,29 +181,32 @@ with st.sidebar:
     selected_body = st.selectbox("选择天体",
                                  ["木星 (Jupiter)", "月亮 (Moon)", "火星 (Mars)", "土星 (Saturn)", "金星 (Venus)"])
 
-    if st.button("开始查询"):
+    if st.button("开始查询", type="primary"):
         st.session_state.searched = True
 
 # 主界面显示结果
 if st.session_state.get('searched'):
-    st.subheader(f"📍 {selected_city} - {selected_body} 观测报告")
+    st.subheader(f"📍 {selected_city} - {selected_body}")
 
     data, error = calculate_star_data(selected_city, selected_body)
 
     if error:
         st.error(error)
+    elif not data:
+        st.info("近期没有查找到该天体的升落事件（可能整天都在天上或地下）。")
     else:
-        for day in data:
+        # 使用表格或列表展示
+        for item in data:
             with st.container():
-                col1, col2, col3, col4 = st.columns([2, 1, 1, 2])
-                col1.metric("日期", day['date'])
-                col2.metric("⬆️ 升起", day['rise'])
-                col3.metric("⬇️ 落下", day['set'])
-                col4.write(f"**{day['recommend']}**")
+                c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
+                c1.write(f"**{item['date']}**")
+                c2.write(f"**{item['time']}**")
+                c3.write(item['type'])
+                c4.caption(item['recommend'])
                 st.divider()
 else:
-    st.info("👈 请在左侧侧边栏选择城市和天体，然后点击“开始查询”")
-`
+    st.info("👈 请在左侧选择并点击“开始查询”")
+          `
         },
       }, document.getElementById("root"));
     </script>
