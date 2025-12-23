@@ -13,12 +13,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.50.0/build/stlite.js"></script>
     <script>
       stlite.mount({
-        // 1. 在这里添加 skyfield 依赖
-        requirements: ["streamlit", "pytz", "skyfield"], 
-        // 2. 指定入口文件
+        requirements: [
+            "streamlit", 
+            "pytz", 
+            "sgp4<2.13",  // 关键！强制使用旧版本，通常是纯Python兼容的
+            "skyfield"    // skyfield 会自动用上面已经装好的 sgp4
+        ],
         entrypoint: "app.py",
-        // 3. 重要：删除了原来的 files: { ... } 模块
-        // 这样 stlite 会自动去通过 HTTP 请求获取同目录下的 app.py 文件
       }, document.getElementById("root"));
     </script>
   </body>
