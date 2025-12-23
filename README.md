@@ -16,6 +16,9 @@ https://img.alicdn.com/imgextra/i3/O1CN01H1UU3i1Cti9lYtFrs_!!6000000000139-2-tps
 - **支持天体**：木星 (Jupiter)、火星 (Mars)、月亮 (Moon)、土星 (Saturn)、金星 (Venus)。
 - **支持城市**：杭州、上海、北京、深圳、广州 (支持扩展)。
 
+![展示1](https://github.com/MengXJ0410/StarWatcher/blob/main/display1.png)
+![展示2](https://github.com/MengXJ0410/StarWatcher/blob/main/display2.png)
+
 ## 🛠️ 安装指南
 
 1. **克隆项目**
